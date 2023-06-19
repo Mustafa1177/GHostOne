@@ -38,11 +38,13 @@ class CCallableBanAdd;
 class CCallableGameAdd;
 class CCallableGamePlayerSummaryCheck;
 class CCallableDotAPlayerSummaryCheck;
+class CCallableDotAPlayerSummaryCheckNew; //New
 
 typedef pair<string,CCallableBanCheck *> PairedBanCheck;
 typedef pair<string,CCallableBanAdd *> PairedBanAdd;
 typedef pair<string,CCallableGamePlayerSummaryCheck *> PairedGPSCheck;
 typedef pair<string,CCallableDotAPlayerSummaryCheck *> PairedDPSCheck;
+typedef pair<string,CCallableDotAPlayerSummaryCheckNew *> PairedDPSCheckNew; //New
 
 class CGame : public CBaseGame
 {
@@ -57,6 +59,7 @@ protected:
 	vector<PairedSafeRemove> m_PairedSafeRemoves;// vector of paired threaded database safe removes in progress
 	vector<PairedGPSCheck> m_PairedGPSChecks;	// vector of paired threaded database game player summary checks in progress
 	vector<PairedDPSCheck> m_PairedDPSChecks;	// vector of paired threaded database DotA player summary checks in progress
+	vector<PairedDPSCheckNew> m_PairedDPSChecksNew;// New
 	uint32_t m_GameOverTime;					// GetTime when the game was over as reported by the stats class
 	bool m_DoAutoWarns;							// enable automated warns for early leavers
 

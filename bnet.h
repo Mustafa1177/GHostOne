@@ -51,6 +51,7 @@ class CCallableBanList;
 class CCallableRunQuery;
 class CCallableGamePlayerSummaryCheck;
 class CCallableDotAPlayerSummaryCheck;
+class CCallableDotAPlayerSummaryCheckNew; //breaks?
 class CDBBan;
 
 typedef pair<string,CCallableAdminCount *> PairedAdminCount;
@@ -66,6 +67,7 @@ typedef pair<string,CCallableRanks *> PairedRanks;
 typedef pair<string,CCallableSafeAdd *> PairedSafeAdd;
 typedef pair<string,CCallableSafeRemove *> PairedSafeRemove;
 typedef pair<string,CCallableRunQuery *> PairedRunQuery;
+typedef pair<string,CCallableDotAPlayerSummaryCheckNew *> PairedDPSCheckNew; //New
 
 class CBNET
 {
@@ -187,6 +189,7 @@ public:
 	vector<PairedAdminRemove> m_PairedAdminRemoves;	// vector of paired threaded database admin removes in progress
 	vector<string> m_FriendsEnteringBnet;
 	vector<PairedDPSCheck> m_PairedDPSChecks;		// vector of paired threaded database DotA player summary checks in progress
+	vector<PairedDPSCheckNew> m_PairedDPSChecksNew; //New
 	uint32_t m_LastFriendEnteredWhisper;
 	bool GetExiting( )					{ return m_Exiting; }
 	string GetServer( )					{ return m_Server; }

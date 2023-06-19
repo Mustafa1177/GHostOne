@@ -221,6 +221,9 @@ CBNET :: ~CBNET( )
 	for( vector<PairedDPSCheck> :: iterator i = m_PairedDPSChecks.begin( ); i != m_PairedDPSChecks.end( ); i++ )
 		m_GHost->m_Callables.push_back( i->second );
 
+	for( vector<PairedDPSCheckNew> :: iterator i = m_PairedDPSChecksNew.begin( ); i != m_PairedDPSChecksNew.end( ); i++ )
+		m_GHost->m_Callables.push_back( i->second );
+
 	if( m_CallableAdminList )
 		m_GHost->m_Callables.push_back( m_CallableAdminList );
 
@@ -599,6 +602,64 @@ bool CBNET :: Update( void *fd, void *send_fd )
 			i++;
 	}
 
+	for( vector<PairedDPSCheckNew> :: iterator i = m_PairedDPSChecksNew.begin( ); i != m_PairedDPSChecksNew.end( ); )
+	{
+		if( i->second->GetReady( ) )
+		{
+			CDBDotAPlayerSummaryNew *DotAPlayerSummary = i->second->GetResult( );
+
+			bool sd = false;
+			bool Whisper = !i->first.empty();
+			string name = i->first;
+
+			if (i->first[0]=='%')
+			{
+				name = i->first.substr(1,i->first.length()-1);
+				Whisper = i->first.length()>1;
+				sd = true;
+			}
+
+			if (sd)
+			if( DotAPlayerSummary )
+			{
+				string RankS = UTIL_ToString( DotAPlayerSummary->GetRank());
+				uint32_t scorescount = m_GHost->ScoresCount();
+
+				if (DotAPlayerSummary->GetRank()>0)
+					RankS = RankS + "/" + UTIL_ToString(scorescount);
+
+				string Summary = "[" + i->second->GetName( ) + "] PSR: " + UTIL_ToString(DotAPlayerSummary->GetRating( ))  + " Games: " + UTIL_ToString(DotAPlayerSummary->GetTotalGames( )) +
+					" (W/L: " + UTIL_ToString(DotAPlayerSummary->GetTotalWins( )) + "/" + UTIL_ToString(DotAPlayerSummary->GetTotalLosses( )) + ") " +
+					" KDA: " +  UTIL_ToString(DotAPlayerSummary->GetAvgKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgDeaths( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgAssists( ))+ 
+					" Creep KDN: " + UTIL_ToString(DotAPlayerSummary->GetAvgCreepKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgCreepDenies( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgNeutralKills( ));
+			
+				QueueChatCommand(Summary, name, Whisper);
+			}
+			else
+				QueueChatCommand( m_GHost->m_Language->HasntPlayedDotAGamesWithThisBot( i->second->GetName( ) ), name, Whisper );
+
+
+			if (!sd)
+			if( DotAPlayerSummary )
+			{
+				string Summary = "[" + i->second->GetName( ) + "] PSR: " + UTIL_ToString(DotAPlayerSummary->GetRating( ))  + " Games: " + UTIL_ToString(DotAPlayerSummary->GetTotalGames( )) +
+					" (W/L: " + UTIL_ToString(DotAPlayerSummary->GetTotalWins( )) + "/" + UTIL_ToString(DotAPlayerSummary->GetTotalLosses( )) + ") " +
+					" KDA: " +  UTIL_ToString(DotAPlayerSummary->GetAvgKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgDeaths( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgAssists( ))+ 
+					" Creep KDN: " + UTIL_ToString(DotAPlayerSummary->GetAvgCreepKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgCreepDenies( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgNeutralKills( ));
+
+				QueueChatCommand( Summary, name, Whisper );
+			}
+			else
+				QueueChatCommand( m_GHost->m_Language->HasntPlayedDotAGamesWithThisBot( i->second->GetName( ) ), name, Whisper );
+
+			m_GHost->m_DB->RecoverCallable( i->second );
+			delete i->second;
+			i = m_PairedDPSChecksNew.erase( i );
+		}
+		else
+			i++;
+	}
+
 	// remove temp bans expiring this day every 6h
 	if( GetLoggedIn() )
 	if (GetTicks()-m_LastTempBansRemoveTime > 1000*3600*6 || m_RemoveTempBans)
@@ -766,9 +827,9 @@ bool CBNET :: Update( void *fd, void *send_fd )
 		m_GHost->m_CallableDownloadFile = NULL;
 	}
 
-	// refresh the ban list every 60 minutes
+	// refresh the ban list every 60 seconds
 
-	if( !m_CallableBanList && GetTime( ) >= m_LastBanRefreshTime + 3600 )
+	if( !m_CallableBanList && GetTime( ) >= m_LastBanRefreshTime + 60 )
 		m_CallableBanList = m_GHost->m_DB->ThreadedBanList( m_Server );
 
 	if( m_CallableBanList && m_CallableBanList->GetReady( ) )
@@ -5710,7 +5771,7 @@ void CBNET :: ProcessChatEvent( CIncomingChatEvent *chatEvent )
 				// !SDPUB
 				//
 
-				if( (Command == "sd" || Command == "sdi" || Command == "sdpub" || Command == "sdpriv") && (GetTime()-m_LastStats>=5))
+				if( (Command == "sda" || Command == "sdi" || Command == "sdpub" || Command == "sdpriv") && (GetTime()-m_LastStats>=5))
 				{
 					m_LastStats = GetTime();
 					string StatsUser = User;
@@ -5790,6 +5851,87 @@ void CBNET :: ProcessChatEvent( CIncomingChatEvent *chatEvent )
 						QueueChatCommand( m_GHost->m_Language->VersionAdmin( m_GHost->m_Version ), User, Whisper );
 					else
 						QueueChatCommand( m_GHost->m_Language->VersionNotAdmin( m_GHost->m_Version ), User, Whisper );
+				}
+
+				//
+				// !SD (new by Mustafa)
+				//
+
+				if( Command == "sd" && (GetTime()-m_LastStats>=1) && !m_GHost->m_nostatsdota )
+				{
+					m_LastStats = GetTime();
+					string StatsUser = User;
+
+					if( !Payload.empty( ) )
+						StatsUser = Payload;
+
+					string Usr;
+					Usr = Whisper ? User : string( );
+					if (m_GHost->m_WhisperAllMessages)
+						Usr = User;
+
+					// check for potential abuse
+					if( !StatsUser.empty( ) && StatsUser.size( ) < 16 && StatsUser[0] != '/' )
+						m_PairedDPSChecksNew.push_back( PairedDPSCheckNew( Usr, m_GHost->m_DB->ThreadedDotAPlayerSummaryCheckNew( string( ), StatsUser, m_GHost->m_ScoreMinGames, string() ) ) );
+				}
+
+				//
+				// !LOBBIES
+				//
+
+				if (Command == "lobbies")
+				{
+					string reply;
+
+					if (m_GHost->m_CurrentGame)
+					{
+						reply = "[" + m_GHost->m_CurrentGame->GetGameName() + " : " + m_GHost->m_CurrentGame->GetOwnerName() + "] ";
+						BYTEARRAY IDs = m_GHost->m_CurrentGame->GetPIDs();
+
+						if (IDs.size() > 0)
+						{
+							for (BYTEARRAY::iterator i = IDs.begin(); i != IDs.end(); i++)
+							{
+								CGamePlayer* plyr = m_GHost->m_CurrentGame->GetPlayerFromPID(*i);
+								reply += plyr->GetName() + " ";
+							}
+						}
+						else
+							reply += "This lobby is empty.";
+					}
+					else
+					{
+						reply = "There are no open lobbies.";
+					}
+					QueueChatCommand(reply, User, Whisper);
+				}
+
+				//
+				// !GAMES
+				//
+
+				else if (Command == "games") 
+				{
+					if (m_GHost->m_Games.size() > 0)
+					{
+						for (vector<CBaseGame*> ::iterator i = m_GHost->m_Games.begin(); i != m_GHost->m_Games.end(); i++)
+						{
+							string reply = "[" + (*i)->GetGameName() + "] ";
+							BYTEARRAY IDs = (*i)->GetPIDs();
+
+							for (BYTEARRAY::iterator i2 = IDs.begin(); i2 != IDs.end(); i2++)
+							{
+								CGamePlayer* plyr = (*i)->GetPlayerFromPID(*i2);
+								reply += plyr->GetName() + " ";
+							}
+
+							QueueChatCommand(reply, User, Whisper);
+						}
+					}
+					else
+					{
+						QueueChatCommand("There are no ongoing games.", User, Whisper);
+					}
 				}
 			}
 		}
@@ -6298,53 +6440,57 @@ CDBBan *CBNET :: IsBannedName( string name )
 
 	// todotodo: optimize this - maybe use a map?
 
-	// we're using a map to search the bans only from letter x to x+1 ex: 
-	// for name = rider, we'll search from r to t
-
-	uint32_t x, y;
-	vector<uint32_t> idx;
-	idx = m_BanlistIndexes;
-
-	unsigned char letter, letter2;
-	letter = name[0];
-
-	if (idx.size()>letter)
+	if(false)
 	{
-		x = idx[letter];
-		y = m_Bans.size()-1;
-		letter2=letter+1;
-		if (idx.size()>letter2)
-		do 
+		// we're using a map to search the bans only from letter x to x+1 ex: 
+		// for name = rider, we'll search from r to t
+
+		uint32_t x, y;
+		vector<uint32_t> idx;
+		idx = m_BanlistIndexes;
+
+		unsigned char letter, letter2;
+		letter = name[0];
+
+		if (idx.size()>letter)
 		{
-			y = idx[letter2];
-			letter2++;
-		} while (letter2<idx.size() && y==999999);
-		// x contains the index of the first ban beginning with the same letter as the name being checked
-		// y contains the index of the ban beginning with the next letter
-		if (y==999999)
+			x = idx[letter];
 			y = m_Bans.size()-1;
+			letter2=letter+1;
+			if (idx.size()>letter2)
+			do 
+			{
+				y = idx[letter2];
+				letter2++;
+			} while (letter2<idx.size() && y==999999);
+			// x contains the index of the first ban beginning with the same letter as the name being checked
+			// y contains the index of the ban beginning with the next letter
+			if (y==999999)
+				y = m_Bans.size()-1;
 
-		// if x!=999999, there is at least a ban with the same letter
-		if (x!=999999)
-		{
-//				CONSOLE_Print("[GHOST] Searching bans from "+ m_Bans[x]->GetName()+ " through "+m_Bans[y]->GetName());
-//				for( vector<CDBBan *> :: iterator i = m_Bans.begin()+x; i != m_Bans.begin()+y; i++ )
-			for(uint32_t i=x; i<=y; i++)
-			{	
-				if (m_Bans[i]->GetName() == name)
-					return m_Bans[i];
+			// if x!=999999, there is at least a ban with the same letter
+			if (x!=999999)
+			{
+	//				CONSOLE_Print("[GHOST] Searching bans from "+ m_Bans[x]->GetName()+ " through "+m_Bans[y]->GetName());
+	//				for( vector<CDBBan *> :: iterator i = m_Bans.begin()+x; i != m_Bans.begin()+y; i++ )
+				for(uint32_t i=x; i<=y; i++)
+				{	
+					if (m_Bans[i]->GetName() == name)
+						return m_Bans[i];
 
+				}
 			}
-		}
-	} 
+		} 
+	}
 
-/*
+
+
 	for( vector<CDBBan *> :: iterator i = m_Bans.begin( ); i != m_Bans.end( ); i++ )
 	{
 		if( (*i)->GetName( ) == name )
 			return *i;
 	}
-*/
+
 
 	return NULL;
 }

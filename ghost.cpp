@@ -3173,7 +3173,7 @@ void CGHost :: UDPCommands( string Message )
 				{
 					// the user was spoof checked, ban only on the spoofed realm
 
-					Game2->m_PairedBanAdds.push_back( PairedBanAdd( m_RootAdmin, m_DB->ThreadedBanAdd( LastMatch->GetServer( ), LastMatch->GetName( ), LastMatch->GetIP( ), Game->GetGameName(), m_RootAdmin, Reason, 0, 0 ) ) );
+					Game2->m_PairedBanAdds.push_back( PairedBanAdd( m_RootAdmin, m_DB->ThreadedBanAdd( LastMatch->GetServer( ), LastMatch->GetName( ), LastMatch->GetIP( ), Game->GetGameName(), m_RootAdmin, Reason, 4, 0 ) ) );
 					//							m_GHost->m_DB->BanAdd( LastMatch->GetServer( ), LastMatch->GetName( ), LastMatch->GetIP( ), m_GameName, User, Reason );
 				}
 				else
@@ -3181,7 +3181,7 @@ void CGHost :: UDPCommands( string Message )
 					// the user wasn't spoof checked, ban on every realm
 
 					for( vector<CBNET *> :: iterator i = m_BNETs.begin( ); i != m_BNETs.end( ); i++ )
-						Game2->m_PairedBanAdds.push_back( PairedBanAdd( m_RootAdmin, m_DB->ThreadedBanAdd( (*i)->GetServer( ), LastMatch->GetName( ), LastMatch->GetIP( ), Game->GetGameName(), m_RootAdmin, Reason, 0, 0 ) ) );
+						Game2->m_PairedBanAdds.push_back( PairedBanAdd( m_RootAdmin, m_DB->ThreadedBanAdd( (*i)->GetServer( ), LastMatch->GetName( ), LastMatch->GetIP( ), Game->GetGameName(), m_RootAdmin, Reason, 4, 0 ) ) );
 					//								m_GHost->m_DB->BanAdd( (*i)->GetServer( ), LastMatch->GetName( ), LastMatch->GetIP( ), m_GameName, User, Reason );
 				}
 
@@ -3690,7 +3690,7 @@ void CGHost :: ReloadConfig ()
 	m_AutoBanCountDown = CFG->GetInt( "bot_autobancountdown", 0 ) == 0 ? false : true;
 	m_AutoBanGameEndMins = CFG->GetInt( "bot_autobangameendmins", 3 );	
 	if (m_AutoBanGameEndMins<1)
-		m_AutoBanGameEndMins = 1;
+		m_AutoBanGameEndMins = m_AutoBanGameEndMins; //;m_AutoBanGameEndMins = 1;
 	m_gamestateinhouse = CFG->GetInt( "bot_gamestateinhouse", 999 );
 	m_AdminsLimitedUnban = CFG->GetInt( "bot_adminslimitedunban", 0 ) == 0 ? false : true;
 	m_AdminsCantUnbanRootadminBans = CFG->GetInt( "bot_adminscantunbanrootadminbans", 0 ) == 0 ? false : true;

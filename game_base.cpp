@@ -643,7 +643,7 @@ bool CBaseGame :: Update( void *fd, void *send_fd )
 	// changed this to ping during game loading as well to hopefully fix some problems with people disconnecting during loading
 	// changed this to ping during the game as well
 
-	if( GetTime( ) - m_LastPingTime >= 5 )
+	if( GetTime( ) - m_LastPingTime >= 1 )
 	{
 		// note: we must send pings to players who are downloading the map because Warcraft III disconnects from the lobby if it doesn't receive a ping every ~90 seconds
 		// so if the player takes longer than 90 seconds to download the map they would be disconnected unless we keep sending pings
@@ -2687,7 +2687,7 @@ void CBaseGame :: EventPlayerJoined( CPotentialPlayer *potential, CIncomingJoinP
 
 	// check if the new player's name is banned
 	if (m_GHost->m_Banning != 0)
-	if (!Reserved)
+              	if (!Reserved)
 	if (!m_ScoreCheckChecked)
 	for( vector<CBNET *> :: iterator i = m_GHost->m_BNETs.begin( ); i != m_GHost->m_BNETs.end( ); i++ )
 	{

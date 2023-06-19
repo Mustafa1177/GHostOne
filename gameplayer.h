@@ -143,6 +143,7 @@ private:
 	bool m_RankSet;
 	string m_ScoreS;
 	string m_RankS;
+	CDBDotAPlayerSummaryNew *m_DotASummary;		//New
 
 public:
 	CGamePlayer( CGameProtocol *nProtocol, CBaseGame *nGame, CTCPSocket *nSocket, unsigned char nPID, string nJoinedRealm, string nName, BYTEARRAY nInternalIP, bool nReserved );
@@ -197,6 +198,7 @@ public:
 	bool GetLeftMessageSent( )					{ return m_LeftMessageSent; }
 	bool GetScoreSet( )						{ return m_ScoreSet; }
 	bool GetRankSet( )						{ return m_RankSet; }
+	CDBDotAPlayerSummaryNew *GetDotASummary( )	{ return m_DotASummary? m_DotASummary : NULL; }	//New  (is the implementaition correct?? (*))
 	uint32_t GetDOTAKills( )				{ return m_DOTAKills; }
 	uint32_t GetDOTADeaths( )				{ return m_DOTADeaths; }
 	uint32_t GetDOTAAssists( )				{ return m_DOTAAssists; }
@@ -204,6 +206,7 @@ public:
 	bool GetSilence( )						{ return m_Silence; }
 	string GetScoreS ( )					{ return m_ScoreS; }
 	string GetRanksS ( )					{ return m_RankS; }
+	int32_t GetDotARating ( )				{ return (m_DotASummary != NULL? m_DotASummary->GetRating( ) : 1500); }
 	bool GetGProxy( )							{ return m_GProxy; }
 	bool GetGProxyDisconnectNoticeSent( )		{ return m_GProxyDisconnectNoticeSent; }
 	uint32_t GetGProxyReconnectKey( )			{ return m_GProxyReconnectKey; }
@@ -249,6 +252,7 @@ public:
 	void SetSilence( bool nSilence )										{ m_Silence = nSilence; }
 	void SetScoreS( string nScore )											{ m_ScoreS = nScore; m_ScoreSet = true; }
 	void SetRankS( string nRank )											{ m_RankS = nRank; m_RankSet = true; }
+	void SetDotASummary( CDBDotAPlayerSummaryNew *nDotAPlayerSummary )		{ m_DotASummary = new CDBDotAPlayerSummaryNew( *nDotAPlayerSummary );}
 	void SetProvider( string nProvider )									{ m_Provider = nProvider;}
 	void SetCountry( string nCountry )										{ m_Country = nCountry;}
 

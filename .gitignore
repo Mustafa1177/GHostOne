@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+Release MySQL/vc90.idb
+Debug MySQL/mt.dep
+Debug MySQL/vc90.idb

@@ -76,6 +76,15 @@ public:
 	}
 };
 
+class CGamePlayerSortDescByRating //New
+{
+public:
+	bool operator( ) ( CGamePlayer *Player1, CGamePlayer *Player2 ) const
+	{
+		return Player1->GetDotARating( ) > Player2->GetDotARating( );
+	}
+};
+
 //
 // CGame
 //
@@ -115,7 +124,9 @@ CGame :: ~CGame( )
 				Reason = "Autobanned"+Reason;
 				CONSOLE_Print( "[AUTOBAN: " + m_GameName + "] Autobanning " + (*i)->GetName( ) + " (" + Reason +")" );
 
-				m_GHost->m_Callables.push_back( m_GHost->m_DB->ThreadedBanAdd( (*i)->GetSpoofedRealm(), (*i)->GetName( ), (*i)->GetIP(), m_GameName, "AUTOBAN", Reason, 0, 0 ));
+				//m_GHost->m_Callables.push_back( m_GHost->m_DB->ThreadedBanAdd( (*i)->GetSpoofedRealm(), (*i)->GetName( ), (*i)->GetIP(), m_GameName, "AUTOBAN", Reason, 0, 0 ));
+				//New:
+				m_GHost->m_Callables.push_back( m_GHost->m_DB->ThreadedBanAdd( (*i)->GetSpoofedRealm(), (*i)->GetName( ), (*i)->GetIP(), m_GameName, "AUTOBAN", Reason, 5, 0 ));
 			}
 		}
 	}
@@ -262,6 +273,9 @@ CGame :: ~CGame( )
 		m_GHost->m_Callables.push_back( i->second );
 
 	for( vector<PairedDPSCheck> :: iterator i = m_PairedDPSChecks.begin( ); i != m_PairedDPSChecks.end( ); i++ )
+		m_GHost->m_Callables.push_back( i->second );
+
+	for( vector<PairedDPSCheckNew> :: iterator i = m_PairedDPSChecksNew.begin( ); i != m_PairedDPSChecksNew.end( ); i++ )
 		m_GHost->m_Callables.push_back( i->second );
 
 	for( vector<CDBBan *> :: iterator i = m_DBBans.begin( ); i != m_DBBans.end( ); i++ )
@@ -637,6 +651,107 @@ bool CGame :: Update( void *fd, void *send_fd )
 			m_GHost->m_DB->RecoverCallable( i->second );
 			delete i->second;
 			i = m_PairedDPSChecks.erase( i );
+		}
+		else
+			i++;
+	}
+
+	for( vector<PairedDPSCheckNew> :: iterator i = m_PairedDPSChecksNew.begin( ); i != m_PairedDPSChecksNew.end( ); )
+	{
+		if( i->second->GetReady( ) )
+		{
+			CDBDotAPlayerSummaryNew *DotAPlayerSummary = i->second->GetResult( );
+
+			bool sd = false;
+			bool Whisper = !i->first.empty();
+			string name = i->first;
+
+			if (i->first[0]=='%')
+			{
+				name = i->first.substr(1,i->first.length()-1);
+				Whisper = i->first.length()>1;
+				sd = true;
+			}
+
+			if (sd)
+			if( DotAPlayerSummary )
+			{
+				uint32_t scorescount = 99; //= m_GHost->ScoresCount();
+
+				CGamePlayer *PlayerN = GetPlayerFromName( i->second->GetName(), true );
+
+				if( PlayerN )
+				{
+					PlayerN->SetScoreS(UTIL_ToString2( DotAPlayerSummary->GetScore()));
+					PlayerN->SetRankS(UTIL_ToString( DotAPlayerSummary->GetRank()));
+					PlayerN->SetDotASummary(DotAPlayerSummary);
+				}
+
+				string RankS = UTIL_ToString( DotAPlayerSummary->GetRank());
+				if (DotAPlayerSummary->GetRank()>0)
+					RankS = RankS + "/" + UTIL_ToString(scorescount);
+
+				string Summary = "[" + i->second->GetName( ) + "] PSR: " + UTIL_ToString(DotAPlayerSummary->GetRating( ))  + " Games: " + UTIL_ToString(DotAPlayerSummary->GetTotalGames( )) +
+					" (W/L: " + UTIL_ToString(DotAPlayerSummary->GetTotalWins( )) + "/" + UTIL_ToString(DotAPlayerSummary->GetTotalLosses( )) + ") " +
+					" KDA: " +  UTIL_ToString(DotAPlayerSummary->GetAvgKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgDeaths( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgAssists( ))+ 
+					" Creep KDN: " + UTIL_ToString(DotAPlayerSummary->GetAvgCreepKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgCreepDenies( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgNeutralKills( ));
+				/*
+				string Summary = m_GHost->m_Language->HasPlayedDotAGamesWithThisBot2( i->second->GetName( ),
+					UTIL_ToString(DotAPlayerSummary->GetTotalGames( )), UTIL_ToString( DotAPlayerSummary->GetWinsPerGame( )),
+					UTIL_ToString( DotAPlayerSummary->GetLossesPerGame( )),UTIL_ToString( DotAPlayerSummary->GetKillsPerGame( )),
+					UTIL_ToString( DotAPlayerSummary->GetDeathsPerGame( )),UTIL_ToString( DotAPlayerSummary->GetCreepKillsPerGame( )),
+					UTIL_ToString( DotAPlayerSummary->GetCreepDeniesPerGame( )),UTIL_ToString( DotAPlayerSummary->GetAssistsPerGame( )),
+					UTIL_ToString( DotAPlayerSummary->GetNeutralKillsPerGame( )),UTIL_ToString( DotAPlayerSummary->GetTowerKillsPerGame( )),
+					UTIL_ToString( DotAPlayerSummary->GetRaxKillsPerGame( )), UTIL_ToString( DotAPlayerSummary->GetCourierKillsPerGame( )),UTIL_ToString2( DotAPlayerSummary->GetScore()),RankS);
+				*/
+				if (!Whisper)
+					SendAllChat(Summary);
+				else
+				{
+					CGamePlayer *Player = GetPlayerFromName( i->first, true );
+
+					if( Player )
+						SendChat( Player, Summary );
+				}				
+			}
+			else
+			{
+				SendAllChat( m_GHost->m_Language->HasntPlayedDotAGamesWithThisBot( i->second->GetName( ) ) );
+			}
+			if (!sd)
+			if( DotAPlayerSummary )
+			{
+				string Summary = "[" + i->second->GetName( ) + "] PSR: " + UTIL_ToString(DotAPlayerSummary->GetRating( ))  + " Games: " + UTIL_ToString(DotAPlayerSummary->GetTotalGames( )) +
+					" (W/L: " + UTIL_ToString(DotAPlayerSummary->GetTotalWins( )) + "/" + UTIL_ToString(DotAPlayerSummary->GetTotalLosses( )) + ") " +
+					" KDA: " +  UTIL_ToString(DotAPlayerSummary->GetAvgKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgDeaths( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgAssists( ))+ 
+					" Creep KDN: " + UTIL_ToString(DotAPlayerSummary->GetAvgCreepKills( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgCreepDenies( )) + "/" +  UTIL_ToString(DotAPlayerSummary->GetAvgNeutralKills( ));
+
+				if( i->first.empty( ) )
+					SendAllChat( Summary );
+				else
+				{
+					CGamePlayer *Player = GetPlayerFromName( i->first, true );
+
+					if( Player )
+						SendChat( Player, Summary );
+				}
+			}
+			else
+			{
+				if( i->first.empty( ) )
+					SendAllChat( m_GHost->m_Language->HasntPlayedDotAGamesWithThisBot( i->second->GetName( ) ) );
+				else
+				{
+					CGamePlayer *Player = GetPlayerFromName( i->first, true );
+
+					if( Player )
+						SendChat( Player, m_GHost->m_Language->HasntPlayedDotAGamesWithThisBot( i->second->GetName( ) ) );
+				}
+			}
+
+			m_GHost->m_DB->RecoverCallable( i->second );
+			delete i->second;
+			i = m_PairedDPSChecksNew.erase( i );
 		}
 		else
 			i++;
@@ -4265,7 +4380,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			// !LATENCY (set game latency)
 			//
 
-			if( Command == "latency" || Command == "dr")
+			if( Command == "latency")
 			{
 				if( Payload.empty( ) )
 				{
@@ -4278,8 +4393,8 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 				{
 					m_Latency = UTIL_ToUInt32( Payload );
 
-					uint32_t minLatency = 20;
-					if (!m_GHost->m_newLatency)
+					uint32_t minLatency = 10;
+					if (!m_GHost->m_newLatency && false)
 						minLatency = 50;
 
 					if( m_Latency <= minLatency )
@@ -4287,10 +4402,10 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 						m_Latency = minLatency;
 						SendAllChat( m_GHost->m_Language->SettingLatencyToMinimum( UTIL_ToString(minLatency) ) );
 					}
-					else if( m_Latency >= 500 )
+					else if( m_Latency >= 2000 )
 					{
 						m_Latency = 500;
-						SendAllChat( m_GHost->m_Language->SettingLatencyToMaximum( "500" ) );
+						SendAllChat( m_GHost->m_Language->SettingLatencyToMaximum( "2000" ) );
 					}
 					else
 						SendAllChat( m_GHost->m_Language->SettingLatencyTo( UTIL_ToString( m_Latency ) ) );
@@ -4408,7 +4523,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 			// !OWNER (set game owner)
 			//
 
-			if( Command == "owner" )
+			if( Command == "ownerold" )
 			{
 				if( RootAdminCheck || IsOwner( User ) || (!GetPlayerFromName( m_OwnerName, false ) && m_OwnerJoined))
 				{
@@ -4494,7 +4609,7 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 					{
 						Pings += UTIL_ToString( (*i)->GetPing( m_GHost->m_LCPings ) );
 
-						if( !m_GameLoading && !m_GameLoaded && !(*i)->GetReserved( ) && KickPing > 0 && (*i)->GetPing( m_GHost->m_LCPings ) > KickPing )
+						if( !m_GameLoading && !(*i)->GetReserved( ) && KickPing > 0 && (*i)->GetPing( m_GHost->m_LCPings ) > KickPing )
 						{
 							(*i)->SetDeleteMe( true );
 							(*i)->SetLeftReason( "was kicked for excessive ping " + UTIL_ToString( (*i)->GetPing( m_GHost->m_LCPings ) ) + " > " + UTIL_ToString( KickPing ) );
@@ -5736,13 +5851,13 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 	}
 
 	//
-	// !SD
+	// !SDA
 	// !SDI
 	// !SDPRIV
 	// !SDPUB
 	//
 
-	if( (Command == "sd" || Command == "sdi" || Command == "sdpub" || Command == "sdpriv") && GetTime( ) >= player->GetStatsDotASentTime( ) + 5 )
+	if( (Command == "sda" || Command == "sdi" || Command == "sdpub" || Command == "sdpriv") && GetTime( ) >= player->GetStatsDotASentTime( ) + 5 )
 	{
 		string StatsUser = User;
 		string GameState = string();
@@ -5843,7 +5958,170 @@ bool CGame :: EventPlayerBotCommand( CGamePlayer *player, string command, string
 		m_CountDownStarted = true;
 		m_CountDownCounter = 0;
 	}
-	
+
+	//
+	// !SD (New by mustafa)
+	//
+	if( Command == "sd"  && GetTime( ) >= player->GetStatsDotASentTime( ) + 1 )
+	{
+		string StatsUser = User;
+		string GameState = string();
+
+		if( !Payload.empty( ) )
+		{
+			StatsUser = Payload;
+
+			CGamePlayer *LastMatch = NULL;
+
+			uint32_t Matches = GetPlayerFromNamePartial( Payload , &LastMatch );
+			if (Matches == 1)
+				StatsUser = LastMatch->GetName();
+		}
+
+		if (m_GHost->m_CalculatingScores)
+			return HideCommand;
+
+		bool nonadmin = !(( player->GetSpoofed( ) &&  AdminCheck) || RootAdminCheck || IsOwner( User ) ) ;
+
+		if (!nonadmin)
+			m_PairedDPSChecksNew.push_back( PairedDPSCheckNew( "%", m_GHost->m_DB->ThreadedDotAPlayerSummaryCheckNew(  string( ), StatsUser, m_GHost->m_ScoreMinGames, GameState ) ) );
+		else
+			m_PairedDPSChecksNew.push_back( PairedDPSCheckNew( "%"+User, m_GHost->m_DB->ThreadedDotAPlayerSummaryCheckNew( string( ), StatsUser, m_GHost->m_ScoreMinGames, GameState ) ) );
+
+		player->SetStatsDotASentTime( GetTime( ) );
+	}
+
+	//
+	// !RALL
+	//
+
+	if( Command == "rall" || Command == "ratingall" )
+	{
+		/*
+		string reply  = string( );
+		BYTEARRAY IDs = m_GHost->m_CurrentGame->GetPIDs();
+		for (BYTEARRAY::iterator i = IDs.begin(); i != IDs.end(); i++)
+		{
+			CGamePlayer* plyr = m_GHost->m_CurrentGame->GetPlayerFromPID(*i);
+			CDBDotAPlayerSummaryNew = plyr->GetDotASummary
+			reply += plyr->GetName() + " ";
+
+		}
+		*/
+		
+		string reply = string( );
+		uint32_t Kicked = 0;
+		int baseRating = 1500;
+		int maxAllowedRating = +9999;
+		int minAllowedRating = -9999;
+
+		vector<CGamePlayer *> SortedPlayers = m_Players;
+		sort( SortedPlayers.begin( ), SortedPlayers.end( ), CGamePlayerSortDescByRating( ) );
+
+		for( vector<CGamePlayer *> :: iterator i = SortedPlayers.begin( ); i != SortedPlayers.end( ); i++ )
+		{
+			CDBDotAPlayerSummaryNew *dotaPlayerSummary = (*i)->GetDotASummary( );
+			//int adrs = dotaPlayerSummary;
+			reply += (*i)->GetNameTerminated( );
+			reply += "(";
+
+			uint32_t playerRating = (*i)->GetDotARating( );
+			if ( dotaPlayerSummary )
+			{
+				playerRating = dotaPlayerSummary->GetRating( );
+				reply += UTIL_ToString( playerRating ) + ") ";
+			}
+			else
+			{
+				playerRating = 1500;
+				reply += UTIL_ToString( playerRating ) + "!) ";
+			}
+
+			if(playerRating > maxAllowedRating)
+			{
+				(*i)->SetDeleteMe( true );
+				(*i)->SetLeftReason( "was kicked for having too high PSR of " + UTIL_ToString( playerRating ) );
+				(*i)->SetLeftCode( PLAYERLEAVE_LOBBY );
+				OpenSlot( GetSIDFromPID( (*i)->GetPID( ) ), false );
+				Kicked++;
+			}
+			/*
+			if ( playerRating < minAllowedRating )
+			{
+				(*i)->SetDeleteMe( true );
+				(*i)->SetLeftReason( "was kicked for having too low PSR of " + UTIL_ToString( playerRating ) );
+				(*i)->SetLeftCode( PLAYERLEAVE_LOBBY );
+				OpenSlot( GetSIDFromPID( (*i)->GetPID( ) ), false );
+				Kicked++;
+			}
+			*/
+		}
+
+		if(IsOwner( User ) || RootAdminCheck)
+			SendAllChat( reply );
+		else
+			SendChat(player->GetPID(), reply);
+			
+
+	}
+
+			//
+			// !OWNER (set game owner) New
+			//
+
+			if( Command == "owner" )
+			{
+				//anyone can be owner as long as the current owner is not in the game
+				string newOwner = string ( );
+				bool ownerIshere = GetPlayerFromName( m_OwnerName, false );
+				if( ( ownerIshere && !RootAdminCheck ) && !IsOwner( User ) )
+				{
+					 newOwner = string ( ); //do not change owner
+				} 
+				else if ( !ownerIshere || RootAdminCheck || (IsOwner( User )))
+				{
+					if( !Payload.empty( ) )
+					{
+						if ( RootAdminCheck || IsOwner( User ) )
+						{
+							newOwner = Payload;
+							CGamePlayer *LastMatch = NULL;
+							uint32_t Matches = GetPlayerFromNamePartial( Payload , &LastMatch );
+							if (Matches == 1)
+								newOwner = LastMatch->GetName();
+						}
+					}
+					else
+					{
+						if( !IsOwner( User ) )
+						{							
+							newOwner = User;
+						}
+						else
+						{
+							newOwner = string ( ); //do not change owner
+						}
+						
+					}
+
+
+				}
+
+				if( newOwner.empty() )
+				{
+					string reply =  "Current game owner is [" + m_OwnerName + "]";
+					if(IsOwner( User ) || RootAdminCheck)
+						SendAllChat( reply );
+					else
+						SendChat(player->GetPID(), reply);
+				}
+				else
+				{
+					SendAllChat( m_GHost->m_Language->SettingGameOwnerTo( newOwner ) );
+					m_OwnerName = newOwner;
+				}		
+			}
+
 	return HideCommand;
 }
 
